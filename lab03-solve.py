@@ -15,12 +15,10 @@ class image:
   def __init__(self, name):
     self.name = name
     self.img_2d = np.array(Image.open(name), dtype=np.uint16)
-    # self.h, self.w, self.d = 5, 5, 1
-    self.h, self.w, self.d = tuple(self.img_2d.shape)
     self.trunc = lambda pixel : max(0, min(255, pixel))
     self.add_to_show(self.img_2d, "{} Original".format(self.name))
   
-  def add_to_show(self, img_2d, name = "Original"):
+  def add_to_show(self, img_2d, name="Original"):
     plt.figure(c.get(), figsize=(5, 5))
     plt.clf()
     plt.title(name)
@@ -45,41 +43,24 @@ class image:
 
   def grayscale(self, show=True):
     tmp = np.asarray(np.dot(self.img_2d, [.3, .59, .11]), dtype=np.uint16)
-    res = np.dstack([tmp]*3)
+    res = np.dstack([tmp] * 3)
     if show:
       self.add_to_show(res, "{} Grayscale".format(self.name))
     return res
 
-  def flip(self, show=True):
-    res = self.img_2d[:, ::-1]
+  def flip(self, axis=1, show=True):
+    res = self.img_2d[:, ::-1] if axis == 1 else self.img_2d[::-1, :]
     if show:
-      self.add_to_show(res, "{} Flip".format(self.name))
+      self.add_to_show(res, "{} {} Flip".format(self.name, "Horizontal" if axis == 1 else "Vertical"))
     return res
 
   def merge(self, img, show=True):
-    my_img_gray = self.grayscale(False)
-    your_img_gray = img.grayscale(False)
+    my_img_gray = self.grayscale(show=False)
+    your_img_gray = img.grayscale(show=False)
     res = np.vectorize(self.trunc)(my_img_gray + your_img_gray)
     if show:
       self.add_to_show(res, "{} Merge with {}".format(self.name, img.name))
     return res
-
-  def get_elem(self, i, j):
-    if i < 0 or i > self.w - 1:
-      return None
-    if j < 0 or j > self.h - 1:
-      return None
-    return self.img_2d[i][j]
-
-  def box(self, box_size, i, j):
-    half = int(box_size / 2)
-    tmp = []
-    for x in range(box_size):
-      for y in range(box_size):
-        elem = self.get_elem(i + x - half, j + y - half)
-        if elem is not None:
-          tmp.append(elem)
-    return np.mean(np.vstack(tmp), axis=0, dtype=np.uint16)
 
   def blur(self, box_size = 3, show=True):
     ml = lambda arr : np.insert(arr, arr.shape[1], 0, axis=1)[:, 1:]
@@ -110,29 +91,44 @@ class image:
     [al, ar], [au, ad] = alr, aud
     res = np.mean(np.concatenate([al, ar, au, ad]), axis=0, dtype=np.uint16)
 
-    # for i in range(self.h):
-    #   res[i, 0] = self.box(box_size, i, 0)
-    #   res[i, self.w - 1] = self.box(box_size, i, self.w - 1)
-
-    # for i in range(self.w):
-    #   res[0, i] = self.box(box_size, 0, i)
-    #   res[self.h - 1, i] = self.box(box_size, self.h - 1, i)
-
     if show:
       self.add_to_show(res, "{} Blur with Box blur {}x{}".format(self.name, box_size, box_size))
     return res
 
 
-
-
-
 if __name__ == '__main__':
-  # pan = image("pandemic.jpeg")
+  # Load image lena.png
   lena = image("lena.png")
-  # lena.change_contrast(50)
-  # lena.change_contrast(-100)
-  # lena.grayscale()
-  # lena.flip()
-  # lena.merge(pan)
-  lena.blur(3)
+
+  # Change brightness with brightness -50, -100, +50, +100
+  lena.change_brightness(-50)
+  lena.change_brightness(-100)
+  lena.change_brightness(50)
+  lena.change_brightness(100)
+
+  # Change contrast with level -50, -100, +50, +100
+  lena.change_contrast(-50)
+  lena.change_contrast(-100)
+  lena.change_contrast(50)
+  lena.change_contrast(100)
+
+  # Convert to grayscale image
+  lena.grayscale()
+
+  # Flip image, axis=0 is vertical flip, axis=1 is horizontal flip
+  lena.flip(axis=0)
+  lena.flip(axis=1)
+
+  # Blur image with Box Blur box_size x box_size, ex: box_size=3 mean kernel is 3x3
+  lena.blur(box_size=3)
+  lena.blur(box_size=9)
+  lena.blur(box_size=15)
+
+  # Load image pandemic.jpeg (has same size as lena.png)
+  pan = image("pandemic.jpeg")
+
+  # Merge pandemic.jpeg to lena.png
+  lena.merge(pan)
+
+  # Show all effects on lena.png we did
   lena.show()
