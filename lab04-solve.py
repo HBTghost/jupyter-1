@@ -6,17 +6,16 @@ from sklearn import svm
 class wine:
   def __init__(self, filename="wine.csv"):
     self.df = pd.read_csv(filename, sep=';')
-    self.B = self.df['quality'].to_numpy()
+    self.df.fillna(0, inplace=True)
+    self.df.drop_duplicates(keep=False, inplace=True)
 
+    self.B = self.df['quality'].to_numpy()
     preA = self.df.drop(['quality'], axis=1)
     self.title_A = preA.columns
     self.A = preA.to_numpy()
 
-  def lirem(self):
-    return np.linalg.pinv(self.A) @ self.B
-
-  def cross(self):
-    bestA = np.array([
+  def cross_val_scores(self):
+    return np.array([
       cross_val_score(
         svm.SVC(kernel='linear', C=1),
         self.A[:, [i]],
@@ -24,30 +23,38 @@ class wine:
         cv=5
       ).mean()
       for i in range(self.A.shape[1])
-    ]).argmax(axis=0)
+    ])
 
-    return self.title_A[bestA], (np.linalg.pinv(self.A[:, [bestA]]) @ self.B)[0]
+  def lireg_all(self):
+    x = np.linalg.pinv(self.A) @ self.B
+    return [(self.title_A[i], x[i]) for i in range(len(x))]
 
-  def clf(self):
-    is_good = lambda x : 1 if x > 5 else 0
-    newB = np.vectorize(is_good)(self.B)
+  def lireg_best(self):
+    bestA = self.cross_val_scores().argmax(axis=0)
+    x = np.linalg.pinv(self.A[:, [bestA]]) @ self.B
+    return self.title_A[bestA], x[0]
 
-    bestA = np.array([
-      cross_val_score(
-        svm.SVC(kernel='linear', C=1),
-        self.A[:, [i]],
-        newB,
-        cv=5
-      ).mean()
-      for i in range(self.A.shape[1])
-    ]).argmax(axis=0)
-    
-    return self.title_A[bestA], (np.linalg.pinv(self.A[:, [bestA]]) @ newB)[0]
-
+  def my_lireg(self):
+    pre_newA = self.df.drop([
+      'quality',
+      'residual sugar',
+      'chlorides',
+      'free sulfur dioxide',
+      'density'
+    ], axis=1)
+    x = np.linalg.pinv(pre_newA.to_numpy()) @ self.B
+    return [(pre_newA.columns[i], x[i]) for i in range(len(x))]
 
 if __name__ == '__main__':
   w = wine()
-  for x in w.lirem():
-    print ("{:f}".format(x))
-  print (w.cross())
-  print (w.clf())
+
+  print ('Cau a. Su dung toan bo 11 dac trung de bai cung cap')
+  for x in w.lireg_all():
+    print (x)
+
+  print ('Cau b. Su dung duy nhat 1 dac trung cho ket qua tot nhat')
+  print (w.lireg_best())
+
+  print ('Cau c. Su dung mo hinh cua em')
+  for x in w.my_lireg():
+    print ("{}".format(x))
